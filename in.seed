@@ -1,0 +1,74 @@
+#FeNiCrCoCu  gy
+
+units    metal
+atom_style    atomic
+
+boundary   p   p  p 
+
+
+read_data	FeNiCrCoCu.data
+velocity   all create 4000  66999
+
+pair_style     eam/alloy
+pair_coeff     * * FeNiCrCoCu.setfl Fe Ni Cr Co Cu 
+
+timestep	1.0e-3
+min_style	cg
+
+neighbor	2.0 bin
+neigh_modify	every 1 delay 10 check yes 
+
+variable E equal pe
+variable N equal atoms
+compute  pe all pe/atom
+compute  ke all ke/atom
+ 
+fix  1 all nvt temp 4000 4000 0.01 drag 0.2
+
+dump 2 all custom 1000 dump_melting.txt id type x y z c_pe c_ke
+
+thermo 	1000
+run 		50000
+unfix   1
+undump   2
+
+fix  1 all nvt temp 4000 2200 0.01 drag 0.2
+
+dump 2 all custom 1800 dump_cool.txt id type x y z c_pe c_ke
+
+thermo 	1000
+run 		180000
+
+unfix   1
+undump   2
+
+fix  2 all nvt temp 2200 2200 0.01 drag 0.2
+
+dump 3 all custom 1000 dump_eq.txt id type x y z c_pe c_ke
+
+thermo 	1000
+run 		100000
+
+unfix   2
+undump   3
+
+region       box   block   INF  INF  INF  INF  INF  INF  units  box 
+region       dong   sphere  71.2   71.2  71.2     20    units  box
+region        bian   sphere  71.2   71.2  71.2     20    side out
+group         bian  region bian
+group        dong   region dong
+
+delete_atoms region dong
+
+read_data    seed.txt  add  append
+
+write_data  data.txt
+
+
+
+fix 1 bian  npt temp 2200 300 1.0 iso 0  0 0.1 drag 0.2
+
+thermo 1000
+dump 2 all custom 100 dump_hea_cool.out id type x y z c_pe c_ke
+
+run 190000
